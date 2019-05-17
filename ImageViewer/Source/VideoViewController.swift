@@ -15,6 +15,7 @@ extension VideoView: ItemView {}
 class VideoViewController: ItemBaseController<VideoView> {
 
     fileprivate let swipeToDismissFadeOutAccelerationFactor: CGFloat = 6
+    private var timeControlStatusObservation: NSKeyValueObservation?
 
     let videoURL: URL
     let player: AVPlayer
@@ -67,7 +68,11 @@ class VideoViewController: ItemBaseController<VideoView> {
 
         self.player.addObserver(self, forKeyPath: "status", options: NSKeyValueObservingOptions.new, context: nil)
         self.player.addObserver(self, forKeyPath: "rate", options: NSKeyValueObservingOptions.new, context: nil)
-
+        if #available(iOS 10.0, *) {
+            timeControlStatusObservation = self.player.observe(\AVPlayer.timeControlStatus) { (_, _) in
+                self.showActivityIndicatorIfNeeded()
+            }
+        }
         UIApplication.shared.beginReceivingRemoteControlEvents()
 
         super.viewWillAppear(animated)
@@ -77,6 +82,7 @@ class VideoViewController: ItemBaseController<VideoView> {
 
         self.player.removeObserver(self, forKeyPath: "status")
         self.player.removeObserver(self, forKeyPath: "rate")
+        timeControlStatusObservation = nil
 
         UIApplication.shared.endReceivingRemoteControlEvents()
 
@@ -179,6 +185,16 @@ class VideoViewController: ItemBaseController<VideoView> {
 
                 self?.embeddedPlayButton.alpha = 0
             })
+        }
+    }
+
+    func showActivityIndicatorIfNeeded() {
+        if #available(iOS 10.0, *) {
+            if player.timeControlStatus == .waitingToPlayAtSpecifiedRate {
+                activityIndicatorView.startAnimating()
+            } else {
+                activityIndicatorView.stopAnimating()
+            }
         }
     }
 
